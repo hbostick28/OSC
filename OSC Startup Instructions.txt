@@ -1,0 +1,6 @@
+Create the following directory: c:\sqlite\db
+
+Navigate to the directory storing the "OSC.py" file from the command line
+
+Run the program with "python osc.py"
+
