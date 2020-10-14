@@ -1,5 +1,9 @@
 Create the following directory: c:\sqlite\db
 
+To setup the database initially, the line inside of the main() function at the very
+beginning that states "setup_database()" will need to be uncommented.
+This function will populate the database with the initial data.
+
 Navigate to the directory storing the "OSC.py" file from the command line
 
 Run the program with "python osc.py"

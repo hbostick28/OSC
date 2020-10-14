@@ -94,8 +94,12 @@ def setup_database():
         quantity INT NOT NULL
     );"""
 
+    #create the table to store customer transactions
+    customer_transactions_table = """CREATE TABLE IF NOT EXISTS customer_transactions (
+        transaction_information TEXT PRIMARY KEY
+    );"""
 
-       ##populate books table with data
+       #populate books table with data
     books1 = """INSERT INTO books (name, description, price, quantity)
     VALUES ('IT', 'A 1986 horror novel by American author Stephen King', 22.35, 25)"""
     books2 = """INSERT INTO books (name, description, price, quantity)
@@ -110,7 +114,7 @@ def setup_database():
     Napoleonic era on Tsarist society through the stories of five Russian aristocratic families', 13.97, 25)"""
 
 
-        ##populate household items table with data
+        #populate household items table with data
     household_item1 = """INSERT INTO household_items (name, description, price, quantity)
     VALUES ('Paper Towels', 'Bounty paper towels', 3.50, 25)"""
     household_item2 = """INSERT INTO household_items (name, description, price, quantity)
@@ -123,7 +127,7 @@ def setup_database():
     VALUES ('Table', '6ft centerfold table, white', 42.00, 25)"""
 
 
-         ##populate small electronic items table with data
+         #populate small electronic items table with data
     se_item1 = """INSERT INTO small_electronics_items (name, description, price, quantity)
     VALUES ('KODAK PIXPRO Digital Camera', '16MP 40X Optical Zoom HD720p video, Red', 149.00, 25)"""
     se_item2 = """INSERT INTO small_electronics_items (name, description, price, quantity)
@@ -136,17 +140,18 @@ def setup_database():
     VALUES ('3D Printer', 'XYZprinting da Vinci Mini Wireless 3D Printer-6"x6"x6" Volume ', 169.99, 25)"""
 
 
-        ##populate toys table with data
+        #populate toys table with data
     toys1 = """INSERT INTO toys (name, description, price, quantity)
     VALUES ('Teddy Bear', 'Joon Mini Teddy Bear, Tan, 13 Inches', 13.75, 25)"""
     toys2 = """INSERT INTO toys (name, description, price, quantity)
     VALUES ('Bicycle', 'Huffy 26" Cranbrook Mens Beach Cruiser Bike, Red Metallic', 95.00, 25)"""
     toys3 = """INSERT INTO toys (name, description, price, quantity)
-    VALUES ('Remote Contol Car', '27MHz 1/14 Scale Kids Licensed Ferrari Model Remote Control Toy Car w/ 5.1 MPH Max Speed, Red', 27.99, 25)"""
+    VALUES ('Remote Control Car', '27MHz 1/14 Scale Kids Licensed Ferrari Model Remote Control Toy Car w/ 5.1 MPH Max Speed, Red', 27.99, 25)"""
     toys4 = """INSERT INTO toys (name, description, price, quantity)
     VALUES ('Mini-trampoline', 'Stamina 36-Inch Trampoline Circuit Trainer with monitor', 42.00, 25)"""
     toys5 = """INSERT INTO toys (name, description, price, quantity)
     VALUES ('Blowup Pool', 'Intex Swim Center Family Inflatable Lounge Pool, 88" x 85" x 30"', 52.99, 25)"""
+
 
     #create database connection
     conn = create_connection(database)
@@ -158,6 +163,7 @@ def setup_database():
         create_table(conn, books_table)
         create_table(conn, toys_table)
         create_table(conn, small_electronics_table)
+        create_table(conn, customer_transactions_table)
     else:
         print("Error! Cannot create the table.")
 
@@ -202,53 +208,172 @@ def setup_database():
         print("Failed to populate table with data.\n")
 
 #function to query a customer's item
-def query_item(conn, item_query, quantity_query, current_total, current_cart):
+def add_to_cart(conn, item_query, quantity_query, current_total, current_cart):
     try:
-        #print("Attempting to get", item_query, "information from the category", category_query)
         c = conn.cursor()
 
+        #get current item price from database
         c.execute("SELECT * FROM household_items WHERE name=:item", {"item":item_query})
         item_found = c.fetchone()
         if (item_found is not None):
-            current_cart.append(item_found)
-            c.execute("SELECT price FROM household_items WHERE name=:item", {"item":item_query})
-            item_price = c.fetchone()
-            res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
-            current_total += res
+            #check if there is enough inventory
+            c.execute("SELECT quantity FROM household_items WHERE name=:item", {"item":item_query})
+            item_quantity = c.fetchone()
+            item_quantity = functools.reduce(lambda sub, ele: sub * 10 + ele, item_quantity)
+            #update inventory
+            if (item_quantity > 0):
+                c.execute("UPDATE household_items SET quantity = quantity - 1 WHERE name=:item", {"item":item_query})
+                conn.commit()
+                #update current cart
+                current_cart.append(item_found)
+                c.execute("SELECT price FROM household_items WHERE name=:item", {"item":item_query})
+                item_price = c.fetchone()
+                res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
+                print("Adding current total: ", current_total, "with item price", res)
+                current_total += res
 
+
+
+        #get current item price from database
         c.execute("SELECT * FROM books WHERE name=:item", {"item":item_query})
         item_found = c.fetchone()
         if (item_found is not None):
-            current_cart.append(item_found)
-            c.execute("SELECT price FROM books WHERE name=:item", {"item":item_query})
-            item_price = c.fetchone()
-            res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
-            current_total += res
+            #check if there is enough inventory
+            c.execute("SELECT quantity FROM books WHERE name=:item", {"item":item_query})
+            item_quantity = c.fetchone()
+            item_quantity = functools.reduce(lambda sub, ele: sub * 10 + ele, item_quantity)
+            #update inventory
+            if (item_quantity > 0):
+                c.execute("UPDATE books SET quantity = quantity - 1 WHERE name=:item", {"item":item_query})
+                conn.commit()
+                #update current cart
+                current_cart.append(item_found)
+                c.execute("SELECT price FROM books WHERE name=:item", {"item":item_query})
+                item_price = c.fetchone()
+                res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
+                print("Adding current total: ", current_total, "with item price", res)
+                current_total += res
 
+
+        #get current item price from database
         c.execute("SELECT * FROM small_electronics_items WHERE name=:item", {"item":item_query})
         item_found = c.fetchone()
         if (item_found is not None):
-            current_cart.append(item_found)
-            c.execute("SELECT price FROM small_electronics_items WHERE name=:item", {"item":item_query})
-            item_price = c.fetchone()
-            res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
-            current_total += res
+            #check if there is enough inventory
+            c.execute("SELECT quantity FROM small_electronics_items WHERE name=:item", {"item":item_query})
+            item_quantity = c.fetchone()
+            item_quantity = functools.reduce(lambda sub, ele: sub * 10 + ele, item_quantity)
+            #update inventory
+            if (item_quantity > 0):
+                c.execute("UPDATE small_electronics_items SET quantity = quantity - 1 WHERE name=:item", {"item":item_query})
+                conn.commit()
+                #update cart
+                current_cart.append(item_found)
+                c.execute("SELECT price FROM small_electronics_items WHERE name=:item", {"item":item_query})
+                item_price = c.fetchone()
+                res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
+                print("Adding current total: ", current_total, "with item price", res)
+                current_total += res
 
+
+
+        #get current item price from database
         c.execute("SELECT * FROM toys WHERE name=:item", {"item":item_query})
         item_found = c.fetchone()
         if (item_found is not None):
-            current_cart.append(item_found)
-            c.execute("SELECT price FROM toys WHERE name=:item", {"item":item_query})
-            item_price = c.fetchone()
-            res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
-            current_total += res
+            #check if there is enough inventory
+            c.execute("SELECT quantity FROM toys WHERE name=:item", {"item":item_query})
+            item_quantity = c.fetchone()
+            item_quantity = functools.reduce(lambda sub, ele: sub * 10 + ele, item_quantity)
+            #update inventory
+            if (item_quantity > 0):
+                c.execute("UPDATE toys SET quantity = quantity - 1 WHERE name=:item", {"item":item_query})
+                conn.commit()
+                #update cart
+                current_cart.append(item_found)
+                c.execute("SELECT price FROM toys WHERE name=:item", {"item":item_query})
+                item_price = c.fetchone()
+                res = functools.reduce(lambda sub, ele: sub * 10 + ele, item_price)
+                print("Adding current total: ", current_total, "with item price", res)
+                current_total += res
+
 
         return current_total
     except Error as e:
         print(e)
+
+#function to remove an item from the current cart
+def remove_from_cart(conn, current_cart, remove_item, current_total):
+    try:
+        c = conn.cursor()
+        #update cart
+        updated_cart = [i for i in current_cart if i[0] != remove_item]
+        print("Updated Cart: ", str(updated_cart))
+
+        #update total price of cart
+        k = 0;
+        for k in current_cart:
+            if (k[0] == remove_item):
+                current_total -= k[2];
+
+                #update quantities in database
+                c.execute("UPDATE household_items SET quantity = quantity + 1 WHERE name=:item", {"item":remove_item})
+                conn.commit()
+                c.execute("UPDATE books SET quantity = quantity + 1 WHERE name=:item", {"item":remove_item})
+                conn.commit()
+                c.execute("UPDATE small_electronics_items SET quantity = quantity + 1 WHERE name=:item", {"item":remove_item})
+                conn.commit()
+                c.execute("UPDATE toys SET quantity = quantity + 1 WHERE name=:item", {"item":remove_item})
+                conn.commit()
+                #print("Item quantities updated.")
+
+        return updated_cart, current_total
+    except Error as e:
+        print(e)
+
+#function for a customer to checkout
+def user_checkout(conn, final_cart, final_price):
+    c = conn.cursor()
+    print("Proceeding to checkout.")
+    print("\n")
+    try:
+        address = str(input("Please, provide a shipping address for your order: "))
+    except Error as e:
+        print(e)
+    try:
+        osc_card_number = int(input("Please, provide your unique ten digit OSC card number for payment: "))
+    except Error as e:
+        print(e)
+    print("Items being purchased: ", final_cart)
+    print("Shipping items to: ", address)
+    print("Amount Due: ", final_price)
+    print("\n")
+    try:
+        confirm_purchase = str(input("Would you like to finalize your order? (y/n): "))
+        if (confirm_purchase == "y"):
+
+                    #update quantities in database
+####################username will need to be added to beginning of this array##########################
+            finalized_transaction = [address, final_cart, final_price]
+            #c.execute("INSERT INTO customer_transactions (transaction_information) VALUES (finalized_transaction)")
+            #conn.commit()
+            print("FINALIZED PURCHASE: ", finalized_transaction)
+            print("Order Successfully Submitted! Here is a list of our updated inventory!")
+            display_inventory(conn)
+        else:
+            print("Order was not successfully confirmed.")
+    except Error as e:
+        print(e)
+
+def is_digit(check_input):
+    if check_input.isdigit():
+        return True
+    return False
+
+
 def main():
     #--------------------Uncomment next line to setup database--------------------
-    #setup_database()
+    setup_database()
 
     database = (r"C:\sqlite\db\osc_system.db")
 
@@ -260,20 +385,74 @@ def main():
     total = 0
     #create current cart
     cart = []
+    #track if a valid item was searched
+    valid_search = True;
 
     #prompt user with shopping choices
     if conn is not None:
-        #display inventory to user
-        display_inventory(conn)
 
-        #prompt user to select items by category, name, and quantity
-        user_item_choice = str(input("Enter the name of the item you would like to purchase: "))
-        user_quantity_choice = int(input("Enter the quanity of the item you would like to purchase: "))
+        checkout = False;
+        while (checkout is not True):
+            #display inventory to user
+            display_inventory(conn)
 
-        current_total = query_item(conn,user_item_choice, user_quantity_choice, total, cart)
-        total += current_total
-        print("Current Items in Cart: ", cart)
-        print("Current Total: ", total)
+            #prompt user to select items by category, name, and quantity
+            user_item_choice = str(input("Enter the name of the item you would like to add to your current shopping cart: "))
+            user_quantity_choice = input("Enter the quantity of the item you would like to purchase: ")
+
+            #check if the user entered a valid quantity
+            valid_digit = is_digit(user_quantity_choice)
+            while (valid_digit is not True):
+                print("Please, enter a valid integer greater than 0.")
+                user_quantity_choice = input("Enter the quantity of the item you would like to purchase: ")
+                valid_digit = is_digit(user_quantity_choice)
+            #ensure item quanitity is an integer
+            user_quantity_choice = int(user_quantity_choice)
+
+            while (user_quantity_choice <= 0):
+                print("Please enter a valid quantity greater than 0.")
+                user_quantity_choice = int(input("Enter the quantity of the item you would like to purchase: "))
+
+            i = 0;
+            for i in range(user_quantity_choice):
+                temp = total
+                #call function to add item to cart
+                current_total = add_to_cart(conn,user_item_choice, user_quantity_choice, total, cart)
+                total = current_total
+                #check if valid item was entered
+                if (total <= temp):
+                    print("\nERROR: ITEM NOT FOUND. Please enter a valid item name and quantity from the listed inventory.")
+                    valid_search = False;
+                    break;
+            #redisplay inventory after invalid item search
+            if (valid_search == False):
+                display_inventory(conn)
+
+            print("Current Items in Cart: ", cart)
+            print("Current Total: ", total)
+            print("\n")
+            user_answer = str(input("Would you like to checkout (c), remove an item (r), add an item (a), or view past purchases (p)?: "))
+            print("\n")
+
+            if (user_answer == "c"):
+                checkout = True;
+                user_checkout(conn, cart, total)
+
+            if (user_answer == "r"):
+                print("Remove an item was chosen.")
+                item_to_remove = str(input("Enter the name of the item you would like to remove (all instances will be removed): "))
+                remove_call = remove_from_cart(conn, cart, item_to_remove, total)
+                cart = remove_call[0]
+                total = remove_call[1]
+                print(item_to_remove, " removed from your cart.")
+                print("Current Items in Cart: ", cart)
+                print("Current Total: ", total)
+                print("\n")
+
+            if (user_answer == "p"):
+                history = True;
+                print("View past transactions was chosen.")
+
 
 
 
